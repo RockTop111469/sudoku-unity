@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en-us">
   <head>
     <meta charset="utf-8">
@@ -146,5 +146,81 @@
       document.body.appendChild(script);
 
     </script>
-  </body>
+  <div id="ocr-bar" style="position:fixed; top:0; left:0; width:100%; background:#1e293b; color:white; padding:10px; text-align:center; z-index:9999; box-shadow:0 2px 6px rgba(0,0,0,0.3); font-family:sans-serif;">
+  <label for="camera-input" style="background:#10b981; color:white; padding:10px 20px; border-radius:8px; font-weight:bold; font-size:16px; cursor:pointer; display:inline-block;">
+    📷 写メから読み取って自動解答
+  </label>
+  <input id="camera-input" type="file" accept="image/*" style="display:none;" />
+  <div id="ocr-status" style="font-size:13px; margin-top:6px; color:#cbd5e1;">ナンプレの写真を撮影または選択してください</div>
+</div>
+<script>
+  let globalUnityInstance = null;
+  const origCreateUnityInstance = createUnityInstance;
+  createUnityInstance = function(canvas, config, onProgress) {
+    return origCreateUnityInstance(canvas, config, onProgress).then(function(instance) {
+      globalUnityInstance = instance;
+      return instance;
+    });
+  };
+
+  document.getElementById('camera-input').addEventListener('change', async function(e) {
+    const file = e.target.files.item(0);
+    if (!file) return;
+    const statusEl = document.getElementById('ocr-status');
+    statusEl.textContent = "AIが画像を解析中...（5〜10秒ほどお待ちください）";
+    statusEl.style.color = "#38bdf8";
+
+    try {
+      const base64Data = await compressImage(file);
+      const workerUrl = "https://" + "sudoku-unity.tats111469.workers.dev";
+      const res = await fetch(workerUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64Data, mimeType: "image/jpeg" })
+      });
+      const data = await res.json();
+      if (data.board && data.board.length === 81) {
+        statusEl.textContent = "読み取り成功！盤面に自動入力しました。";
+        statusEl.style.color = "#4ade80";
+        if (globalUnityInstance) {
+          globalUnityInstance.SendMessage("BoardPanel", "SetBoardFromWeb", data.board);
+        }
+      } else {
+        statusEl.textContent = "盤面を正しく読み取れませんでした。もう一度明るく撮ってお試しください。";
+        statusEl.style.color = "#f87171";
+      }
+    } catch (err) {
+      statusEl.textContent = "通信エラーが発生しました: " + err.message;
+      statusEl.style.color = "#f87171";
+    }
+    e.target.value = "";
+  });
+
+  function compressImage(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxDim = 1024;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl.split(',').at(1));
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+</script>
+</body>
 </html>
+

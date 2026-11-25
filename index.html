@@ -180,17 +180,17 @@
       });
       const data = await res.json();
       if (data.board && data.board.length === 81) {
-        statusEl.textContent = "読み取り成功！盤面に自動入力しました。";
+        statusEl.textContent = "読み取り成功！(" + data.board.slice(0,9) + "...)";
         statusEl.style.color = "#4ade80";
         if (globalUnityInstance) {
           globalUnityInstance.SendMessage("BoardPanel", "SetBoardFromWeb", data.board);
         }
       } else {
-        statusEl.textContent = "盤面を正しく読み取れませんでした。もう一度明るく撮ってお試しください。";
+        statusEl.textContent = "読み取り失敗: " + JSON.stringify(data);
         statusEl.style.color = "#f87171";
       }
     } catch (err) {
-      statusEl.textContent = "通信エラーが発生しました: " + err.message;
+      statusEl.textContent = "通信エラー: " + err.message;
       statusEl.style.color = "#f87171";
     }
     e.target.value = "";

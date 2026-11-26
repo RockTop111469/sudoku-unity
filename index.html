@@ -26,37 +26,23 @@
     <input id="camera-input" type="file" accept="image/*" style="display:none;" />
     <div id="ocr-status" style="font-size:12px; margin-top:4px; color:#cbd5e1;">ナンプレの写真を撮影または選択してください</div>
   </div>
-
-  <div id="unity-container">
-    <canvas id="unity-canvas"></canvas>
-  </div>
-
-  <script src="Build/web.loader.js?v=1795707978"></script>
+  <div id="unity-container"><canvas id="unity-canvas"></canvas></div>
+  <script src="Build/web.loader.js?v=1795708391"></script>
   <script>
     let globalUnityInstance = null;
     const canvas = document.querySelector("#unity-canvas");
-    const config = {
-      dataUrl: "Build/web.data?v=1795707978",
-      frameworkUrl: "Build/web.framework.js?v=1795707978",
-      codeUrl: "Build/web.wasm?v=1795707978",
+    createUnityInstance(canvas, {
+      dataUrl: "Build/web.data?v=1795708391",
+      frameworkUrl: "Build/web.framework.js?v=1795708391",
+      codeUrl: "Build/web.wasm?v=1795708391",
       streamingAssetsUrl: "StreamingAssets",
       companyName: "DefaultCompany",
       productName: "SUDOKU",
       productVersion: "1.0",
-    };
-
-    createUnityInstance(canvas, config, (progress) => {
+    }, (progress) => {
       const statusEl = document.getElementById('ocr-status');
-      if (progress < 1) {
-        statusEl.textContent = "アプリ読み込み中... " + Math.round(progress * 100) + "%";
-      } else {
-        statusEl.textContent = "ナンプレの写真を撮影または選択してください";
-      }
-    }).then((instance) => {
-      globalUnityInstance = instance;
-    }).catch((message) => {
-      document.getElementById('ocr-status').textContent = "起動エラー: " + message;
-    });
+      statusEl.textContent = progress < 1 ? "アプリ読み込み中... " + Math.round(progress * 100) + "%" : "ナンプレの写真を撮影または選択してください";
+    }).then((instance) => { globalUnityInstance = instance; });
 
     document.getElementById('camera-input').addEventListener('change', async function(e) {
       const file = e.target.files.item(0);
@@ -64,11 +50,9 @@
       const statusEl = document.getElementById('ocr-status');
       statusEl.textContent = "AIが画像を解析中...（5〜10秒ほどお待ちください）";
       statusEl.style.color = "#38bdf8";
-
       try {
         const base64Data = await compressImage(file);
-        const workerUrl = "https://" + "sudoku-unity.tats111469.workers.dev";
-        const res = await fetch(workerUrl, {
+        const res = await fetch("https://" + "sudoku-unity.tats111469.workers.dev", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageBase64: base64Data, mimeType: "image/jpeg" })
@@ -77,9 +61,7 @@
         if (data.board && data.board.length === 81) {
           statusEl.textContent = "読み取り成功！(" + data.board.slice(0,9) + "...)";
           statusEl.style.color = "#4ade80";
-          if (globalUnityInstance) {
-            globalUnityInstance.SendMessage("BoardPanel", "SetBoardFromWeb", data.board);
-          }
+          if (globalUnityInstance) globalUnityInstance.SendMessage("BoardPanel", "SetBoardFromWeb", data.board);
         } else {
           statusEl.textContent = "読み取り失敗: " + JSON.stringify(data);
           statusEl.style.color = "#f87171";
@@ -104,11 +86,9 @@
               if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
               else { w = Math.round(w * maxDim / h); h = maxDim; }
             }
-            c.width = w;
-            c.height = h;
+            c.width = w; c.height = h;
             c.getContext('2d').drawImage(img, 0, 0, w, h);
-            const dataUrl = c.toDataURL('image/jpeg', 0.85);
-            resolve(dataUrl.split(',').at(1));
+            resolve(c.toDataURL('image/jpeg', 0.85).split(',').at(1));
           };
           img.src = event.target.result;
         };

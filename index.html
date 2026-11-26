@@ -1,226 +1,120 @@
 ﻿<!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | My project (3)</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <div id="unity-fullscreen-container">
-        <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
-        <div id="unity-loading-container">
-          <div id="unity-loading-bar">
-            <div id="unity-logo"></div>
-            <div id="unity-progress-bar-empty">
-              <div id="unity-progress-bar-full"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-logo-title-footer"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">My project (3)</div>
-      </div>
-    </div>
-    <script>
-      let canvas = document.querySelector("#unity-canvas");
-      let fullscreenContainer = document.querySelector("#unity-fullscreen-container");
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AI ナンプレ自動解答</title>
+  <style>
+    body { margin: 0; padding: 0; background: #1e293b; overflow: hidden; font-family: sans-serif; }
+    #ocr-bar {
+      position: fixed; top: 0; left: 0; width: 100%; height: 74px;
+      background: #1e293b; color: white; padding: 8px; box-sizing: border-box;
+      text-align: center; z-index: 9999; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    #unity-container {
+      position: fixed; top: 74px; left: 0; width: 100%; height: calc(100% - 74px);
+      background: #231F20; display: flex; justify-content: center; align-items: center;
+    }
+    #unity-canvas { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+  <div id="ocr-bar">
+    <label for="camera-input" style="background:#10b981; color:white; padding:8px 18px; border-radius:8px; font-weight:bold; font-size:15px; cursor:pointer; display:inline-block;">
+      📷 写メから読み取って自動解答
+    </label>
+    <input id="camera-input" type="file" accept="image/*" style="display:none;" />
+    <div id="ocr-status" style="font-size:12px; margin-top:4px; color:#cbd5e1;">ナンプレの写真を撮影または選択してください</div>
+  </div>
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
-      function unityShowBanner(msg, type) {
-        var warningBanner = document.querySelector("#unity-warning");
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
-      }
+  <div id="unity-container">
+    <canvas id="unity-canvas"></canvas>
+  </div>
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/web.loader.js?v=1795620259";
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + "/web.data",
-        frameworkUrl: buildUrl + "/web.framework.js",
-        codeUrl: buildUrl + "/web.wasm",
-        streamingAssetsUrl: "StreamingAssets",
+  <script src="Build/web.loader.js?v=1795707978"></script>
+  <script>
+    let globalUnityInstance = null;
+    const canvas = document.querySelector("#unity-canvas");
+    const config = {
+      dataUrl: "Build/web.data?v=1795707978",
+      frameworkUrl: "Build/web.framework.js?v=1795707978",
+      codeUrl: "Build/web.wasm?v=1795707978",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "SUDOKU",
+      productVersion: "1.0",
+    };
 
-        // If you have a custom web site structure, or want to place multiple Unity build instances on the same page,
-        // you can pass fullscreenElementID: "my-unity-fullscreen-container-id", in this configuration field to
-        // explicitly point to the element tree root that is displayed in fullscreen mode.
-        fullscreenElementID: "unity-fullscreen-container",
-
-        companyName: "DefaultCompany",
-        productName: "My project (3)",
-        productVersion: "1.0",
-        showBanner: unityShowBanner,
-        // errorHandler: function(err, url, line) {
-        //    alert("error " + err + " occurred at line " + line);
-        //    // Return 'true' if you handled this error and don't want Unity
-        //    // to process it further, 'false' otherwise.
-        //    return true;
-        // },
-      };
-
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
-
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
-
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
-
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
-
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
-
-
+    createUnityInstance(canvas, config, (progress) => {
+      const statusEl = document.getElementById('ocr-status');
+      if (progress < 1) {
+        statusEl.textContent = "アプリ読み込み中... " + Math.round(progress * 100) + "%";
       } else {
-        // Desktop style: Render the game canvas container in a window that can be maximized to fullscreen:
-        fullscreenContainer.style.width = "960px";
-        fullscreenContainer.style.height = "600px";
+        statusEl.textContent = "ナンプレの写真を撮影または選択してください";
       }
-
-
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        const loadingContainer = document.querySelector("#unity-loading-container");
-        const progressBarFull = document.querySelector("#unity-progress-bar-full");
-
-        createUnityInstance(canvas, config, (progress) => {
-          if (progress < 1) {
-            loadingContainer.style.display = "block";
-            progressBarFull.style.width = 100 * progress + "%";
-          } else {
-            loadingContainer.style.display = "none";
-          }
-        }).then((unityInstance) => {
-                document.querySelector("#unity-fullscreen-button").onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-
-              }).catch((message) => {
-                alert(message);
-              });
-            };
-
-      document.body.appendChild(script);
-
-    </script>
-  <div id="ocr-bar" style="position:fixed; top:0; left:0; width:100%; background:#1e293b; color:white; padding:10px; text-align:center; z-index:9999; box-shadow:0 2px 6px rgba(0,0,0,0.3); font-family:sans-serif;">
-  <label for="camera-input" style="background:#10b981; color:white; padding:10px 20px; border-radius:8px; font-weight:bold; font-size:16px; cursor:pointer; display:inline-block;">
-    📷 写メから読み取って自動解答
-  </label>
-  <input id="camera-input" type="file" accept="image/*" style="display:none;" />
-  <div id="ocr-status" style="font-size:13px; margin-top:6px; color:#cbd5e1;">ナンプレの写真を撮影または選択してください</div>
-</div>
-<script>
-  let globalUnityInstance = null;
-  const origCreateUnityInstance = createUnityInstance;
-  createUnityInstance = function(canvas, config, onProgress) {
-    return origCreateUnityInstance(canvas, config, onProgress).then(function(instance) {
+    }).then((instance) => {
       globalUnityInstance = instance;
-      return instance;
+    }).catch((message) => {
+      document.getElementById('ocr-status').textContent = "起動エラー: " + message;
     });
-  };
 
-  document.getElementById('camera-input').addEventListener('change', async function(e) {
-    const file = e.target.files.item(0);
-    if (!file) return;
-    const statusEl = document.getElementById('ocr-status');
-    statusEl.textContent = "AIが画像を解析中...（5〜10秒ほどお待ちください）";
-    statusEl.style.color = "#38bdf8";
+    document.getElementById('camera-input').addEventListener('change', async function(e) {
+      const file = e.target.files.item(0);
+      if (!file) return;
+      const statusEl = document.getElementById('ocr-status');
+      statusEl.textContent = "AIが画像を解析中...（5〜10秒ほどお待ちください）";
+      statusEl.style.color = "#38bdf8";
 
-    try {
-      const base64Data = await compressImage(file);
-      const workerUrl = "https://" + "sudoku-unity.tats111469.workers.dev";
-      const res = await fetch(workerUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64Data, mimeType: "image/jpeg" })
-      });
-      const data = await res.json();
-      if (data.board && data.board.length === 81) {
-        statusEl.textContent = "読み取り成功！(" + data.board.slice(0,9) + "...)";
-        statusEl.style.color = "#4ade80";
-        if (globalUnityInstance) {
-          globalUnityInstance.SendMessage("BoardPanel", "SetBoardFromWeb", data.board);
+      try {
+        const base64Data = await compressImage(file);
+        const workerUrl = "https://" + "sudoku-unity.tats111469.workers.dev";
+        const res = await fetch(workerUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: base64Data, mimeType: "image/jpeg" })
+        });
+        const data = await res.json();
+        if (data.board && data.board.length === 81) {
+          statusEl.textContent = "読み取り成功！(" + data.board.slice(0,9) + "...)";
+          statusEl.style.color = "#4ade80";
+          if (globalUnityInstance) {
+            globalUnityInstance.SendMessage("BoardPanel", "SetBoardFromWeb", data.board);
+          }
+        } else {
+          statusEl.textContent = "読み取り失敗: " + JSON.stringify(data);
+          statusEl.style.color = "#f87171";
         }
-      } else {
-        statusEl.textContent = "読み取り失敗: " + JSON.stringify(data);
+      } catch (err) {
+        statusEl.textContent = "通信エラー: " + err.message;
         statusEl.style.color = "#f87171";
       }
-    } catch (err) {
-      statusEl.textContent = "通信エラー: " + err.message;
-      statusEl.style.color = "#f87171";
-    }
-    e.target.value = "";
-  });
-
-  function compressImage(file) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.createElement('canvas');
-          const maxDim = 1024;
-          let w = img.width, h = img.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-            else { w = Math.round(w * maxDim / h); h = maxDim; }
-          }
-          canvas.width = w;
-          canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-          resolve(dataUrl.split(',').at(1));
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
+      e.target.value = "";
     });
-  }
-</script>
+
+    function compressImage(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const img = new Image();
+          img.onload = function() {
+            const c = document.createElement('canvas');
+            const maxDim = 1024;
+            let w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+              else { w = Math.round(w * maxDim / h); h = maxDim; }
+            }
+            c.width = w;
+            c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            const dataUrl = c.toDataURL('image/jpeg', 0.85);
+            resolve(dataUrl.split(',').at(1));
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
 </body>
 </html>
-

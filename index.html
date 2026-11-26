@@ -181,7 +181,7 @@
 
       try {
         const base64Data = await compressImage(file);
-        const res = await fetch("https://workers.dev", {
+        const res = await fetch("https://sudoku-unity.tats111469.workers.dev", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageBase64: base64Data, mimeType: "image/jpeg" })
@@ -226,3 +226,4 @@
   </script>
 </body>
 </html>
+

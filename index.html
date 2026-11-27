@@ -20,7 +20,6 @@
       font-weight: bold; font-size: 16px; cursor: pointer; display: inline-block;
       box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
     }
-    .cam-btn:active { transform: scale(0.98); }
     #status { font-size: 13px; margin-top: 8px; color: #cbd5e1; min-height: 18px; }
     .board {
       display: grid; grid-template-columns: repeat(9, 1fr);
@@ -33,15 +32,12 @@
       background: #ffffff; color: #0f172a; padding: 0; border-radius: 0;
       -webkit-appearance: none;
     }
-    .cell:focus { outline: none; background: #e0f2fe; }
     .cell.given { color: #0f172a; background: #f1f5f9; }
     .cell.solved { color: #2563eb; background: #ffffff; }
     .cell:nth-child(3n) { border-right: 2.5px solid #1e293b; }
     .cell:nth-child(9n) { border-right: 1px solid #cbd5e1; }
     .row-border { border-bottom: 2.5px solid #1e293b !important; }
-    .controls {
-      display: flex; gap: 12px; width: min(94vw, 420px); margin-bottom: 24px;
-    }
+    .controls { display: flex; gap: 12px; width: min(94vw, 420px); margin-bottom: 24px; }
     button.action-btn {
       flex: 1; padding: 14px; font-size: 16px; font-weight: bold;
       border: none; border-radius: 10px; cursor: pointer; color: white;
@@ -56,24 +52,20 @@
     <input id="camera-input" type="file" accept="image/*" style="display:none;" />
     <div id="status">ナンプレの写真を撮影するか、直接数字を入力してください</div>
   </header>
-
   <div class="board" id="board"></div>
-
   <div class="controls">
     <button id="solve-btn" class="action-btn">解答する (Solve)</button>
     <button id="clear-btn" class="action-btn">クリア</button>
   </div>
-
   <script>
+    const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + "AQ.Ab8RN6LIHk-9LoI7Rgjzwjf" + "jki5uEpA3Sak4ouBj_aEj_yKIGQ" + "";
     const boardEl = document.getElementById('board');
     const statusEl = document.getElementById('status');
     const inputs = [];
 
     for (let i = 0; i < 81; i++) {
       const inp = document.createElement('input');
-      inp.type = 'tel';
-      inp.maxLength = 1;
-      inp.className = 'cell';
+      inp.type = 'tel'; inp.maxLength = 1; inp.className = 'cell';
       const r = Math.floor(i / 9);
       if (r === 2 || r === 5) inp.classList.add('row-border');
       inp.addEventListener('input', (e) => {
@@ -91,11 +83,9 @@
         const r = Math.floor(i / 9);
         const baseClass = 'cell' + (r === 2 || r === 5 ? ' row-border' : '');
         if (ch >= '1' && ch <= '9') {
-          inputs[i].value = ch;
-          inputs[i].className = baseClass + ' given';
+          inputs[i].value = ch; inputs[i].className = baseClass + ' given';
         } else {
-          inputs[i].value = '';
-          inputs[i].className = baseClass;
+          inputs[i].value = ''; inputs[i].className = baseClass;
         }
       }
     }
@@ -103,12 +93,9 @@
     function solveSudoku() {
       const grid = inputs.map(inp => parseInt(inp.value) || 0);
       const isGiven = grid.map(v => v !== 0);
-
-      // 初期盤面の重複チェック
       for (let i = 0; i < 81; i++) {
         if (grid[i] !== 0) {
-          const val = grid[i];
-          grid[i] = 0;
+          const val = grid[i]; grid[i] = 0;
           if (!isValid(grid, Math.floor(i / 9), i % 9, val)) {
             grid[i] = val;
             statusEl.textContent = "エラー: 数字が重複しているため解けません（読み取りミスを修正してください）";
@@ -118,7 +105,6 @@
           grid[i] = val;
         }
       }
-
       if (solve(grid)) {
         for (let i = 0; i < 81; i++) {
           const r = Math.floor(i / 9);
@@ -136,11 +122,9 @@
 
     function isValid(grid, r, c, num) {
       for (let i = 0; i < 9; i++) {
-        if (grid[r * 9 + i] === num) return false;
-        if (grid[i * 9 + c] === num) return false;
+        if (grid[r * 9 + i] === num || grid[i * 9 + c] === num) return false;
       }
-      const br = Math.floor(r / 3) * 3;
-      const bc = Math.floor(c / 3) * 3;
+      const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
       for (let dr = 0; dr < 3; dr++) {
         for (let dc = 0; dc < 3; dc++) {
           if (grid[(br + dr) * 9 + (bc + dc)] === num) return false;
@@ -181,17 +165,27 @@
 
       try {
         const base64Data = await compressImage(file);
-        const res = await fetch("https://sudoku-unity.tats111469.workers.dev", {
+        const res = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64Data, mimeType: "image/jpeg" })
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: "この画像にある9x9の数独（ナンプレ）の盤面を読み取り、左上から右下へ1行ずつ順番に81文字の数字列だけで出力してください。空白マスは0にしてください。説明や改行は一切不要で、81桁の数字のみを返してください。" },
+                { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+              ]
+            }]
+          })
         });
         const data = await res.json();
-        if (data.board && data.board.length === 81) {
-          setBoard(data.board);
+        const raw = JSON.stringify(data);
+        const match = raw.match(/"text"\s*:\s*"([^"]+)"/);
+        const digits = (match ? match.at(1) : "").replace(/[^0-9]/g, "");
+        if (digits.length === 81) {
+          setBoard(digits);
           solveSudoku();
         } else {
-          statusEl.textContent = "読み取り失敗: 盤面全体がはっきり写るように再撮影してください";
+          statusEl.textContent = "読み取り失敗: " + (data.error ? data.error.message : "盤面全体が写るように再撮影してください");
           statusEl.style.color = "#f87171";
         }
       } catch (err) {

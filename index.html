@@ -58,7 +58,7 @@
     <button id="clear-btn" class="action-btn">クリア</button>
   </div>
   <script>
-    const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + "AQ.Ab8RN6LIHk-9LoI7Rgjzwjf" + "jki5uEpA3Sak4ouBj_aEj_yKIGQ" + "";
+    const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"; const API_KEY = "AQ.Ab8RN6LYxkEXX5QEy" + "a-M3IvaC04APyme_Osp86PSkCpZEevbKQ";
     const boardEl = document.getElementById('board');
     const statusEl = document.getElementById('status');
     const inputs = [];
@@ -167,7 +167,7 @@
         const base64Data = await compressImage(file);
         const res = await fetch(API_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-goog-api-key": API_KEY },
           body: JSON.stringify({
             contents: [{
               parts: [
@@ -220,4 +220,5 @@
   </script>
 </body>
 </html>
+
 
